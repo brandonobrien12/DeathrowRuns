@@ -146,19 +146,23 @@
             localStorage.setItem('playersData', JSON.stringify(data));
         }
 
+        // Load teams from localStorage
+        const teams = JSON.parse(localStorage.getItem('teams')) || [];
+
+        // Load players from localStorage
         const players = getPlayers(); // Load players from storage
         const teamPlayers = []; // Track players already assigned to teams
-        updatePlayersList(); // Update the UI on page load
 
-        function addPlayer() {
-            const playerName = document.getElementById('playerName').value;
-            if (playerName && !players.includes(playerName)) {
-                players.push(playerName);
-                document.getElementById('playerName').value = '';
-                updatePlayersList();
-                updateStorage(players); // Save to localStorage
-            }
-        }
+        // Load team players from localStorage
+        teams.forEach(team => {
+            const teamPlayersList = JSON.parse(localStorage.getItem(`team-${team.id}-players`)) || [];
+            teamPlayersList.forEach(player => {
+                teamPlayers.push(player);
+            });
+        });
+
+        updatePlayersList();
+        updateTeamList();
 
         function updatePlayersList() {
             const playersList = document.getElementById('playersList');
@@ -175,41 +179,42 @@
             });
         }
 
-        function clearAllPlayers() {
-            players.length = 0;
-            teamPlayers.length = 0;
-            updatePlayersList();
-            updateStorage(players); // Save to localStorage
+        function updateTeamList() {
+            const teamContainer = document.getElementById('teamContainer');
+            teamContainer.innerHTML = '';
+
+            teams.forEach(team => {
+                const teamDiv = document.createElement('div');
+                teamDiv.classList.add('team');
+                teamDiv.id = `team-${team.id}`;
+                teamDiv.innerHTML = `
+                    <h3>Team ${team.id}</h3>
+                    <ul id="team-${team.id}-list"></ul>
+                    <button onclick="deleteTeam(${team.id})">Team Played (Delete)</button>
+                `;
+                teamDiv.addEventListener('dragover', handleDragOver);
+                teamDiv.addEventListener('drop', handleDrop);
+
+                teamContainer.appendChild(teamDiv);
+
+                const teamPlayersList = JSON.parse(localStorage.getItem(`team-${team.id}-players`)) || [];
+                teamPlayersList.forEach(player => {
+                    const playerLi = document.createElement('li');
+                    playerLi.textContent = player;
+                    document.getElementById(`team-${team.id}-list`).appendChild(playerLi);
+                });
+            });
         }
 
-        // Team creation
-        function createNewTeam() {
-    if (players.length === 0) {
-        alert("No players available to form teams.");
-        return;
-    }
-    const teamContainer = document.getElementById('teamContainer');
-
-    const teamDiv = document.createElement('div');
-    teamDiv.classList.add('team');
-    teamDiv.id = `team-${teamCounter}`;
-    teamDiv.innerHTML = `
-        <h3>Team ${teamCounter}</h3>
-        <ul id="team-${teamCounter}-list"></ul>
-        <button onclick="deleteTeam(${teamCounter})">Team Played (Delete)</button>
-    `;
-    teamDiv.addEventListener('dragover', handleDragOver);
-    teamDiv.addEventListener('drop', handleDrop);
-
-    teamContainer.appendChild(teamDiv);
-
-    // Store the team in localStorage
-    const teams = JSON.parse(localStorage.getItem('teams')) || [];
-    teams.push({ id: teamCounter, players: [] });
-    localStorage.setItem('teams', JSON.stringify(teams));
-
-    teamCounter++;
-}
+        function addPlayer() {
+            const playerName = document.getElementById('playerName').value;
+            if (playerName && !players.includes(playerName)) {
+                players.push(playerName);
+                document.getElementById('playerName').value = '';
+                updatePlayersList();
+                updateStorage(players); // Save to localStorage
+            }
+        }
 
         function clearAllPlayers() {
             players.length = 0;
@@ -225,7 +230,35 @@
             localStorage.removeItem('teams');
         }
 
-        // Delete team and return players back to the player queue
+        // Team creation
+        function createNewTeam() {
+            if (players.length === 0) {
+                alert("No players available to form teams.");
+                return;
+            }
+            const teamContainer = document.getElementById('teamContainer');
+
+            const teamDiv = document.createElement('div');
+            teamDiv.classList.add('team');
+            teamDiv.id = `team-${teamCounter}`;
+            teamDiv.innerHTML = `
+                <h3>Team ${teamCounter}</h3>
+                <ul id="team-${teamCounter}-list"></ul>
+                <button onclick="deleteTeam(${teamCounter})">Team Played (Delete)</button>
+            `;
+            teamDiv.addEventListener('dragover', handleDragOver);
+            teamDiv.addEventListener('drop', handleDrop);
+
+            teamContainer.appendChild(teamDiv);
+
+            // Store the team in localStorage
+            const teams = JSON.parse(localStorage.getItem('teams')) || [];
+            teams.push({ id: teamCounter, players: [] });
+            localStorage.setItem('teams', JSON.stringify(teams));
+
+            teamCounter++;
+        }
+
         function deleteTeam(teamId) {
             const teamList = document.getElementById(`team-${teamId}-list`);
             const playersToReturn = Array.from(teamList.children);
@@ -253,13 +286,16 @@
                 teams.splice(index, 1);
                 localStorage.setItem('teams', JSON.stringify(teams));
             }
+
+            // Store the deleted team ID in localStorage
+            localStorage.setItem('deletedTeamId', teamId);
         }
 
         // Drag and drop functionality
         let draggedPlayer;
         function handleDragStart(event) {
             draggedPlayer = event.target;
-            event.dataTransfer.setData('text', event.target.textContent);
+            event .dataTransfer.setData('text', event.target.textContent);
         }
 
         function handleDragOver(event) {
@@ -267,42 +303,42 @@
         }
 
         function handleDrop(event) {
-    event.preventDefault();
-    const teamId = event.target.closest('.team').id.replace('team-', '');
-    const playerName = event.dataTransfer.getData('text');
-    const teamList = document.getElementById(`team-${teamId}-list`);
+            event.preventDefault();
+            const teamId = event.target.closest('.team').id.replace('team-', '');
+            const playerName = event.dataTransfer.getData('text');
+            const teamList = document.getElementById(`team-${teamId}-list`);
 
-    // Get the current number of players in the team
-    const currentPlayers = teamList.children.length;
+            // Get the current number of players in the team
+            const currentPlayers = teamList.children.length;
 
-    // Check if the team already has 5 players
-    if (currentPlayers >= 5) {
-        alert("This team already has 5 players. Please select a different team.");
-        const teamDiv = event.target.closest('.team');
-        teamDiv.classList.add('full-row');
-        return;
-    }
+            // Check if the team already has 5 players
+            if (currentPlayers >= 5) {
+                alert("This team already has 5 players. Please select a different team.");
+                const teamDiv = event.target.closest('.team');
+                teamDiv.classList.add('full-row');
+                return;
+            }
 
-    // Add player to team
-    const playerLi = document.createElement('li');
-    playerLi.textContent = playerName;
-    teamList.appendChild(playerLi);
+            // Add player to team
+            const playerLi = document.createElement('li');
+            playerLi.textContent = playerName;
+            teamList.appendChild(playerLi);
 
-    // Remove player from player queue
-    const index = players.indexOf(playerName);
-    if (index > -1) {
-        players.splice(index, 1);
-        teamPlayers.push(playerName);
-    }
+            // Remove player from player queue
+            const index = players.indexOf(playerName);
+            if (index > -1) {
+                players.splice(index, 1);
+                teamPlayers.push(playerName);
+            }
 
-    // Store the player name in localStorage
-    const teamPlayersList = JSON.parse(localStorage.getItem(`team-${teamId}-players`)) || [];
-    teamPlayersList.push(playerName);
-    localStorage.setItem(`team-${teamId}-players`, JSON.stringify(teamPlayersList));
+            // Store the player name in localStorage
+            const teamPlayersList = JSON.parse(localStorage.getItem(`team-${teamId}-players`)) || [];
+            teamPlayersList.push(playerName);
+            localStorage.setItem(`team-${teamId}-players`, JSON.stringify(teamPlayersList));
 
-    updatePlayersList();
-    updateStorage(players); // Save updated player queue to localStorage
-}
+            updatePlayersList();
+            updateStorage(players); // Save updated player queue to localStorage
+        }
 
         function clearLocalStorage() {
             // Clear teams in localStorage
