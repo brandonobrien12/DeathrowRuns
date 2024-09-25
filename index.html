@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deathrow Basketball Run Registration & Team Assignment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: white;
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .list, .teams {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .list h2, .teams h2 {
+            margin-bottom: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f1f1f1;
+            cursor: pointer;
+        }
+        li.dragging {
+            opacity: 0.5;
+        }
+        .team {
+            margin: 0;
+            padding: 10px;
+            border: 2px solid #ccc;
+        }
+        .team h3 {
+            margin-top: 0;
+        }
+        #clear-local-storage {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        #teamContainer {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 10px;
+        }
+        .team.full-row {
+            grid-column: 1 / -1;
+        }
+        @media (max-width: 768px) {
+            #teamContainer {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            #teamContainer {
+                grid-template-columns: repeat(1, 1fr);
+            }
+        }
+    </style>
+    
+</head>
+    <div>
+    <button onclick="clearLocalStorage()">Clear Local Storage</button>
+    </div>
+<body>
+
+    <h1>Basketball Open Run Registration & Team Assignment</h1>
+
+    <p>Pay your entry fee via Cash App to $YourCashAppTag and enter your name below.</p>
+    <p>Once the payment is confirmed, your name will appear on the list below.</p>
+
+    <form id="registrationForm">
+        <label for="playerName">Your Name:</label>
+        <input type="text" id="playerName" name="playerName" required>
+        <button type="button" onclick="addPlayer()">Submit</button>
+    </form>
+
+    <div class="list">
+        <h2>Confirmed Players</h2>
+        <ul id="playersList"></ul>
+        <button onclick="clearAllPlayers()">Clear All Players</button>
+    </div>
+
+    <div class="teams">
+        <h2>Teams</h2>
+        <div id="teamContainer"></div>
+        <button onclick="createNewTeam()">Create New Team</button>
+        <button onclick="window.location.href='teams.html'">View Teams</button>
+    </div>
+
+    
+    <script>
+        const EXPIRATION_TIME = 120 * 60 * 60 * 1000; // 120 hours in milliseconds
+        let teamCounter = 1;
+
+        // Initialize players from localStorage or set up an empty array
+        function getPlayers() {
+            const storedData = JSON.parse(localStorage.getItem('playersData'));
+            if (storedData && storedData.timestamp) {
+                const currentTime = new Date().getTime();
+                const elapsedTime = currentTime - storedData.timestamp;
+
+                // Check if 120 hours have passed
+                if (elapsedTime < EXPIRATION_TIME) {
+                    return storedData.players || [];
+                } else {
+                    // If time has expired, clear storage
+                    localStorage.removeItem('playersData');
+                }
+            }
+            return [];
+        }
+
+        // Update the player list in localStorage
+        function updateStorage(players) {
+            const data = {
+                players: players,
+                timestamp: new Date().getTime()
+            };
+            localStorage.setItem('playersData', JSON.stringify(data));
+        }
+
+        const players = getPlayers(); // Load players from storage
+        const teamPlayers = []; // Track players already assigned to teams
+        updatePlayersList(); // Update the UI on page load
+
+        function addPlayer() {
+            const playerName = document.getElementById('playerName').value;
+            if (playerName && !players.includes(playerName)) {
+                players.push(playerName);
+                document.getElementById('playerName').value = '';
+                updatePlayersList();
+                updateStorage(players); // Save to localStorage
+            }
+        }
+
+        function updatePlayersList() {
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = '';
+            players.forEach((player, index) => {
+                // Only add players to the list who are not already assigned to teams
+                if (!teamPlayers.includes(player)) {
+                    const li = document.createElement('li');
+                    li.textContent = player;
+                    li.draggable = true;
+                    li.addEventListener('dragstart', handleDragStart);
+                    playersList.appendChild(li);
+                }
+            });
+        }
+
+        function clearAllPlayers() {
+            players.length = 0;
+            teamPlayers.length = 0;
+            updatePlayersList();
+            updateStorage(players); // Save to localStorage
+        }
+
+        // Team creation
+        function createNewTeam() {
+    if (players.length === 0) {
+        alert("No players available to form teams.");
+        return;
+    }
+    const teamContainer = document.getElementById('teamContainer');
+
+    const teamDiv = document.createElement('div');
+    teamDiv.classList.add('team');
+    teamDiv.id = `team-${teamCounter}`;
+    teamDiv.innerHTML = `
+        <h3>Team ${teamCounter}</h3>
+        <ul id="team-${teamCounter}-list"></ul>
+        <button onclick="deleteTeam(${teamCounter})">Team Played (Delete)</button>
+    `;
+    teamDiv.addEventListener('dragover', handleDragOver);
+    teamDiv.addEventListener('drop', handleDrop);
+
+    teamContainer.appendChild(teamDiv);
+
+    // Store the team in localStorage
+    const teams = JSON.parse(localStorage.getItem('teams')) || [];
+    teams.push({ id: teamCounter, players: [] });
+    localStorage.setItem('teams', JSON.stringify(teams));
+
+    teamCounter++;
+}
+
+        function clearAllPlayers() {
+            players.length = 0;
+            teamPlayers.length = 0;
+            updatePlayersList();
+            updateStorage(players); // Save to localStorage
+
+            // Clear teams in localStorage
+            const teams = JSON.parse(localStorage.getItem('teams')) || [];
+            teams.forEach(team => {
+                localStorage.removeItem(`team-${team.id}-players`);
+            });
+            localStorage.removeItem('teams');
+        }
+
+        // Delete team and return players back to the player queue
+        function deleteTeam(teamId) {
+            const teamList = document.getElementById(`team-${teamId}-list`);
+            const playersToReturn = Array.from(teamList.children);
+
+            playersToReturn.forEach(player => {
+                const playerName = player.textContent;
+                players.push(playerName); // Return to player queue
+                const index = teamPlayers.indexOf(playerName);
+                if (index > -1) {
+                    teamPlayers.splice(index, 1); // Remove from teamPlayers array
+                }
+            });
+
+            updatePlayersList();
+            updateStorage(players); // Save updated player queue to localStorage
+
+            // Remove the team div from the DOM
+            const teamDiv = document.getElementById(`team-${teamId}`);
+            teamDiv.remove();
+
+            // Remove the team from localStorage
+            const teams = JSON.parse(localStorage.getItem('teams'));
+            const index = teams.findIndex(team => team.id === teamId);
+            if (index > -1) {
+                teams.splice(index, 1);
+                localStorage.setItem('teams', JSON.stringify(teams));
+            }
+        }
+
+        // Drag and drop functionality
+        let draggedPlayer;
+        function handleDragStart(event) {
+            draggedPlayer = event.target;
+            event.dataTransfer.setData('text', event.target.textContent);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+        }
+
+        function handleDrop(event) {
+    event.preventDefault();
+    const teamId = event.target.closest('.team').id.replace('team-', '');
+    const playerName = event.dataTransfer.getData('text');
+    const teamList = document.getElementById(`team-${teamId}-list`);
+
+    // Get the current number of players in the team
+    const currentPlayers = teamList.children.length;
+
+    // Check if the team already has 5 players
+    if (currentPlayers >= 5) {
+        alert("This team already has 5 players. Please select a different team.");
+        const teamDiv = event.target.closest('.team');
+        teamDiv.classList.add('full-row');
+        return;
+    }
+
+    // Add player to team
+    const playerLi = document.createElement('li');
+    playerLi.textContent = playerName;
+    teamList.appendChild(playerLi);
+
+    // Remove player from player queue
+    const index = players.indexOf(playerName);
+    if (index > -1) {
+        players.splice(index, 1);
+        teamPlayers.push(playerName);
+    }
+
+    // Store the player name in localStorage
+    const teamPlayersList = JSON.parse(localStorage.getItem(`team-${teamId}-players`)) || [];
+    teamPlayersList.push(playerName);
+    localStorage.setItem(`team-${teamId}-players`, JSON.stringify(teamPlayersList));
+
+    updatePlayersList();
+    updateStorage(players); // Save updated player queue to localStorage
+}
+
+        function clearLocalStorage() {
+            // Clear teams in localStorage
+            const teams = JSON.parse(localStorage.getItem('teams')) || [];
+            teams.forEach(team => {
+                localStorage.removeItem(`team-${team.id}-players`);
+            });
+            localStorage.removeItem('teams');
+            localStorage.removeItem('playersData');
+
+            // Clear the team container
+            document.getElementById('teamContainer').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

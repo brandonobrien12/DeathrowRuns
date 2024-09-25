@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        .team {
+            margin-top: 20px;
+            border: 2px solid #ccc;
+            padding: 10px;
+        }
+        .team h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Teams</h1>
+
+    <div id="teamContainer"></div>
+
+    <script>
+        // Load teams from localStorage
+        const teams = JSON.parse(localStorage.getItem('teams')) || [];
+
+        // Get the deleted team ID from localStorage
+        const deletedTeamId = localStorage.getItem('deletedTeamId');
+
+        teams.forEach(team => {
+            const teamDiv = document.createElement('div');
+            teamDiv.classList.add('team');
+            teamDiv.id = `team-${team.id}`;
+            teamDiv.innerHTML = `
+                <h3>Team ${team.id}</h3>
+                <ul id="team-${team.id}-list"></ul>
+            `;
+
+            const teamPlayers = JSON.parse(localStorage.getItem(`team-${team.id}-players`)) || [];
+
+            teamPlayers.forEach(player => {
+                const playerLi = document.createElement('li');
+                playerLi.textContent = player;
+                teamDiv.querySelector('ul').appendChild(playerLi);
+            });
+
+            // Check if the team ID matches the deleted team ID
+            if (team.id !== parseInt(deletedTeamId)) {
+                document.getElementById('teamContainer').appendChild(teamDiv);
+            }
+        });
+
+        // Remove the deleted team ID from localStorage
+        localStorage.removeItem('deletedTeamId');
+    </script>
+</body>
+</html>
